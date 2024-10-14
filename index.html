@@ -1,1 +1,253 @@
-"coucou" 
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recettes de Guacamole</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        :root {
+            --primary-color: #2ecc71;
+            --secondary-color: #27ae60;
+            --background-color: #f0f8ff;
+            --text-color: #333;
+            --card-background: #ffffff;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            text-align: center;
+            padding: 2em;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 600;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .recipes-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2em;
+            padding: 2em;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .recipe-card {
+            background-color: var(--card-background);
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .recipe-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+
+        .recipe-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .recipe-content {
+            padding: 1.5em;
+        }
+
+        .recipe-title {
+            color: var(--primary-color);
+            margin: 0 0 0.5em;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .recipe-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+
+        .recipe-btn {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.5em 1em;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .recipe-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        #recipe-modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #recipe-modal.show {
+            opacity: 1;
+        }
+
+        .modal-content {
+            background-color: var(--card-background);
+            margin: 5% auto;
+            padding: 2em;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transform: translateY(-50px);
+            transition: transform 0.3s ease;
+        }
+
+        #recipe-modal.show .modal-content {
+            transform: translateY(0);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Délicieuses Recettes de Guacamole</h1>
+    </header>
+    <div class="recipes-container" id="recipes-container"></div>
+    <div id="recipe-modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="recipe-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const defaultRecipes = [
+            { 
+                title: "Guacamole Classique", 
+                file: "guacamole-classique.md",
+                description: "La recette traditionnelle mexicaine, simple et savoureuse.",
+                image: "/api/placeholder/400/320"
+            },
+            { 
+                title: "Guacamole Épicé", 
+                file: "guacamole-epice.md",
+                description: "Une version relevée pour les amateurs de sensations fortes.",
+                image: "/api/placeholder/400/320"
+            },
+            { 
+                title: "Guacamole aux Tomates", 
+                file: "guacamole-tomates.md",
+                description: "Un mélange frais et coloré, parfait pour l'été.",
+                image: "/api/placeholder/400/320"
+            }
+        ];
+
+        const container = document.getElementById('recipes-container');
+        const modal = document.getElementById('recipe-modal');
+        const modalContent = document.getElementById('recipe-content');
+        const closeBtn = document.getElementsByClassName('close')[0];
+
+        async function loadRecipes() {
+            try {
+                const response = await fetch('/api/recipes');
+                const recipes = await response.json();
+                return recipes.length > 0 ? recipes : defaultRecipes;
+            } catch (error) {
+                console.error('Erreur lors du chargement des recettes:', error);
+                return defaultRecipes;
+            }
+        }
+
+        function createRecipeCard(recipe) {
+            const card = document.createElement('div');
+            card.className = 'recipe-card';
+            card.innerHTML = `
+                <img src="${recipe.image || "/api/placeholder/400/320"}" alt="${recipe.title}" class="recipe-image">
+                <div class="recipe-content">
+                    <h2 class="recipe-title">${recipe.title}</h2>
+                    <p class="recipe-description">${recipe.description || "Une délicieuse recette de guacamole."}</p>
+                    <a href="#" class="recipe-btn">Voir la recette</a>
+                </div>
+            `;
+            card.querySelector('.recipe-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                loadRecipe(recipe.file);
+            });
+            return card;
+        }
+
+        async function init() {
+            const recipes = await loadRecipes();
+            recipes.forEach(recipe => {
+                container.appendChild(createRecipeCard(recipe));
+            });
+        }
+
+        closeBtn.onclick = () => {
+            modal.classList.remove('show');
+            setTimeout(() => { modal.style.display = "none"; }, 300);
+        };
+
+        window.onclick = (event) => {
+            if (event.target == modal) {
+                closeBtn.onclick();
+            }
+        };
+
+        async function loadRecipe(file) {
+            try {
+                const response = await fetch(`/recettes/${file}`);
+                const markdown = await response.text();
+                const converter = new showdown.Converter();
+                const html = converter.makeHtml(markdown);
+                modalContent.innerHTML = html;
+                modal.style.display = "block";
+                setTimeout(() => { modal.classList.add('show'); }, 10);
+            } catch (error) {
+                console.error('Erreur lors du chargement de la recette:', error);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
