@@ -6,6 +6,7 @@
     <title>Recettes de Guacamole</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
     <style>
+        /* Les styles CSS restent les mêmes que précédemment */
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
 
         :root {
@@ -160,40 +161,46 @@
     </div>
 
     <script>
-        const defaultRecipes = [
-            { 
-                title: "Guacamole Classique", 
-                file: "guacamole-classique.md",
-                description: "La recette traditionnelle mexicaine, simple et savoureuse.",
-                image: "/api/placeholder/400/320"
-            },
-            { 
-                title: "Guacamole Épicé", 
-                file: "guacamole-epice.md",
-                description: "Une version relevée pour les amateurs de sensations fortes.",
-                image: "/api/placeholder/400/320"
-            },
-            { 
-                title: "Guacamole aux Tomates", 
-                file: "guacamole-tomates.md",
-                description: "Un mélange frais et coloré, parfait pour l'été.",
-                image: "/api/placeholder/400/320"
-            }
-        ];
+        const BASE_URL = 'https://farad77.github.io/guacamole/recettes/';
+        const RECIPE_FILES = ['recette1.md', 'recette2.md', 'recette3.md']; // Ajustez selon vos fichiers réels
+        const PIXABAY_API_KEY = ''; // Laissez vide pour des raisons de sécurité
 
         const container = document.getElementById('recipes-container');
         const modal = document.getElementById('recipe-modal');
         const modalContent = document.getElementById('recipe-content');
         const closeBtn = document.getElementsByClassName('close')[0];
 
+        async function getRandomGuacamoleImage() {
+            try {
+                const response = await fetch(`https://pixabay.com/api/?key=${PIXABAY_API_KEY}&q=guacamole&image_type=photo&per_page=200`);
+                const data = await response.json();
+                const randomIndex = Math.floor(Math.random() * data.hits.length);
+                return data.hits[randomIndex].webformatURL;
+            } catch (error) {
+                console.error('Erreur lors du chargement de l\'image:', error);
+                return '/api/placeholder/400/320'; // Image par défaut en cas d'erreur
+            }
+        }
+
         async function loadRecipes() {
             try {
-                const response = await fetch('/api/recipes');
-                const recipes = await response.json();
-                return recipes.length > 0 ? recipes : defaultRecipes;
+                const recipes = await Promise.all(RECIPE_FILES.map(async file => {
+                    const content = await fetch(BASE_URL + file).then(res => res.text());
+                    const lines = content.split('\n');
+                    const title = lines[0].replace('#', '').trim();
+                    const description = lines.slice(1).find(line => line.trim() !== '') || "Une délicieuse recette de guacamole.";
+                    const image = await getRandomGuacamoleImage();
+                    return {
+                        title,
+                        file,
+                        description,
+                        image
+                    };
+                }));
+                return recipes;
             } catch (error) {
                 console.error('Erreur lors du chargement des recettes:', error);
-                return defaultRecipes;
+                return [];
             }
         }
 
@@ -201,10 +208,10 @@
             const card = document.createElement('div');
             card.className = 'recipe-card';
             card.innerHTML = `
-                <img src="${recipe.image || "/api/placeholder/400/320"}" alt="${recipe.title}" class="recipe-image">
+                <img src="${recipe.image}" alt="${recipe.title}" class="recipe-image">
                 <div class="recipe-content">
                     <h2 class="recipe-title">${recipe.title}</h2>
-                    <p class="recipe-description">${recipe.description || "Une délicieuse recette de guacamole."}</p>
+                    <p class="recipe-description">${recipe.description}</p>
                     <a href="#" class="recipe-btn">Voir la recette</a>
                 </div>
             `;
@@ -235,7 +242,7 @@
 
         async function loadRecipe(file) {
             try {
-                const response = await fetch(`/recettes/${file}`);
+                const response = await fetch(BASE_URL + file);
                 const markdown = await response.text();
                 const converter = new showdown.Converter();
                 const html = converter.makeHtml(markdown);
